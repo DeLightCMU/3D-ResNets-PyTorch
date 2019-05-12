@@ -3,7 +3,7 @@ import torch
 
 from models.resnet import resnet34
 from models.FlowNetS import flownets
-from models.Inception import inception_3D
+from models.inception3D import InceptionModule, Unit3D
 from models.warping import warp
 
 
@@ -14,13 +14,26 @@ class FGS3D(nn.Module):
 
         self.num_frames = num_frames
         self.num_keyframe = num_keyframe
+        self.num_classes = num_classes
+        dropout_keep_prob = 0.0
 
         self.resnet_feature = resnet34(pretrained=True, num_classes=400)
         self.optical_flow = flownets()
         self.warp = warp()
-        self.inception_3D_1 = inception_3D()
-        self.inception_3D_2 = inception_3D()
-        self.inception_3D_3 = inception_3D()
+        self.inception_3D_1 = InceptionModule(512, [192,96,208,16,48,64], 'mixed_4a')
+        self.inception_3D_2 = InceptionModule(192+208+48+64, [160,112,224,24,64,64], 'mixed_4b')
+        self.inception_3D_3 = InceptionModule(160+224+64+64, [128,128,256,24,64,64], 'mixed_4c')
+
+        self.avg_pool = nn.AvgPool3d(kernel_size=[2, 7, 7],
+                                     stride=(1, 1, 1))
+        self.dropout = nn.Dropout(dropout_keep_prob)
+        self.logits = Unit3D(in_channels=128+256+64+64, output_channels=self.num_classes,
+                             kernel_shape=[1, 1, 1],
+                             padding=0,
+                             activation_fn=None,
+                             use_batch_norm=False,
+                             use_bias=True,
+                             name='logits')
 
         self.softmax_cls = nn.Softmax()
         self.softmax_img = nn.Softmax()
@@ -135,13 +148,22 @@ class FGS3D(nn.Module):
         feat_t  = feat_re.permute(0, 2, 1, 3, 4)
 
         # 3D inception
+        # mixed_4b
         feature = self.inception_3D_1(feat_t)
         feature = self.inception_3D_2(feature)
         feature = self.inception_3D_3(feature)
 
+        # avg pool
+        feat_avg = self.avg_pool(feature)
+
+        # dropout
+        feat_dropout = self.dropout(feat_avg)
+
+        # prediction
+        pred_video = self.logits(feat_dropout)
 
         # loss for video
-        pred_video = self.softmax_vid(feature)
+        pred_video = self.softmax_vid(pred_video)
 
         return pred_keyframes, pred_video
 
