@@ -8,7 +8,6 @@ from torch import optim
 from torch.optim import lr_scheduler
 
 from opts import parse_opts
-from model import generate_model
 from mean import get_mean, get_std
 from spatial_transforms import (
     Compose, Normalize, Scale, CenterCrop, CornerCrop, MultiScaleCornerCrop,
@@ -21,6 +20,27 @@ from utils import Logger
 from train import train_epoch
 from validation import val_epoch
 import test
+from FGS3D import FGS3D
+
+def get_fine_tuning_parameters(model, ft_begin_index):
+    if ft_begin_index == 0:
+        return model.parameters()
+
+    ft_module_names = []
+    for i in range(ft_begin_index, 5):
+        ft_module_names.append('layer{}'.format(i))
+    ft_module_names.append('fc')
+
+    parameters = []
+    for k, v in model.named_parameters():
+        for ft_module in ft_module_names:
+            if ft_module in k:
+                parameters.append({'params': v})
+                break
+        else:
+            parameters.append({'params': v, 'lr': 0.0})
+
+    return parameters
 
 if __name__ == '__main__':
     opt = parse_opts()
@@ -44,7 +64,16 @@ if __name__ == '__main__':
 
     torch.manual_seed(opt.manual_seed)
 
-    model, parameters = generate_model(opt)
+    modality = 'RGB'
+    num_class = opt.n_classes
+    if opt.arch == 'FGS3D-0':
+        input_channel = 3 if modality == 'RGB' else 2
+        model = FGS3D(num_classes=num_class, dropout_keep_prob=0.0)
+        model = torch.nn.DataParallel(model).cuda()
+        parameters = get_fine_tuning_parameters(model, opt.ft_begin_index)
+    else:
+        IOError(opt.arch)
+
     print(model)
     criterion = nn.CrossEntropyLoss()
     if not opt.no_cuda:

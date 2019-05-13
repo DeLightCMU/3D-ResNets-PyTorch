@@ -1,4 +1,5 @@
 import torch.nn as nn
+import torch
 from .utils import load_state_dict_from_url
 
 
@@ -144,7 +145,9 @@ class ResNet(nn.Module):
         self.layer4 = self._make_layer(block, 512, layers[3], stride=2,
                                        dilate=replace_stride_with_dilation[2])
         self.avgpool = nn.AdaptiveAvgPool2d((1, 1))
-        self.fc = nn.Linear(512 * block.expansion, num_classes)
+        self.fc1 = nn.Linear(512 * block.expansion, num_classes)
+        torch.nn.init.xavier_uniform(self.fc1.weight)
+        torch.nn.init.constant(self.fc1.bias, 0.1)
 
         for m in self.modules():
             if isinstance(m, nn.Conv2d):
@@ -200,9 +203,22 @@ class ResNet(nn.Module):
 
         x = self.avgpool(x_fea)
         x = x.reshape(x.size(0), -1)
-        x = self.fc(x)
+        x = self.fc1(x)
 
         return x_fea, x
+
+    def load_state_dict(self, target_weights):
+        own_state = self.state_dict()
+
+        for name, param in target_weights.items():
+            if name in own_state:
+                if isinstance(param, nn.Parameter):
+                    param = param.data
+                    own_state[name].copy_(param)
+            else:
+                print('{} meets error in locating parameters'.format(name))
+        missing = set(own_state.keys()) - set(target_weights.keys())
+        print('{} keys are not holded in target checkpoints'.format(len(missing)))
 
 
 def _resnet(arch, inplanes, planes, pretrained, progress, **kwargs):
