@@ -76,7 +76,7 @@ def get_video_names_and_annotations(data, subset):
                 video_names.append('test/{}'.format(key))
             else:
                 label = value['annotations']['label']
-                video_names.append(key)
+                video_names.append('{}/{}'.format(label, key))
                 annotations.append(value['annotations'])
 
     return video_names, annotations
@@ -93,8 +93,6 @@ def make_dataset(root_path, annotation_path, subset, n_samples_for_each_video,
 
     dataset = []
     for i in range(len(video_names)):
-        if i % 1000 == 0:
-            print('dataset loading [{}/{}]'.format(i, len(video_names)))
 
         if subset == 'training':
             video_path = os.path.join(root_path, 'train', video_names[i])
@@ -102,6 +100,9 @@ def make_dataset(root_path, annotation_path, subset, n_samples_for_each_video,
             video_path = os.path.join(root_path, 'val', video_names[i])
         if not os.path.exists(video_path):
             continue
+
+        if i % 1000 == 0:
+            print('dataset loading [{}/{}]'.format(i, len(video_names)))
 
         n_frames_file_path = os.path.join(video_path, 'n_frames')
         n_frames = int(load_value_file(n_frames_file_path))
