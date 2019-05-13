@@ -23,9 +23,13 @@ def train_epoch(epoch, data_loader, model, criterion, optimizer, opt,
         data_time.update(time.time() - end_time)
 
         if not opt.no_cuda:
+<<<<<<< HEAD
             targets_vid = targets.cuda(non_blocking=True)
             targets_img = torch.cat((targets, targets, targets, targets, targets, targets, targets, targets), dim=0)
             targets_img = targets_img.cuda(non_blocking=True)
+=======
+            targets = targets.cuda(non_blocking=True)
+>>>>>>> 90119755c114b12d9538c240f4b103a48c9a6c54
         inputs = Variable(inputs)
         targets_vid = Variable(targets_vid)
         targets_img = Variable(targets_img)
