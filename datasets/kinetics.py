@@ -91,52 +91,61 @@ def make_dataset(root_path, annotation_path, subset, n_samples_for_each_video,
     for name, label in class_to_idx.items():
         idx_to_class[label] = name
 
-    dataset = []
-    for i in range(len(video_names)):
+    if os.path.exists(os.path.join(root_path, 'cache', 'dataset_{}.json'.format(subset))):
+        with open(os.path.join(root_path, 'cache', 'dataset_{}.json'.format(subset)), 'r') as f:
+            dataset = json.load(f)
+    else:
+        dataset = []
+        for i in range(len(video_names)):
 
-        if subset == 'training':
-            video_path = os.path.join(root_path, 'train', video_names[i])
-        else:
-            video_path = os.path.join(root_path, 'val', video_names[i])
-        if not os.path.exists(video_path):
-            continue
-
-        if i % 1000 == 0:
-            print('dataset loading [{}/{}]'.format(i, len(video_names)))
-
-        n_frames_file_path = os.path.join(video_path, 'n_frames')
-        n_frames = int(load_value_file(n_frames_file_path))
-        if n_frames <= 0:
-            continue
-
-        begin_t = 1
-        end_t = n_frames
-        sample = {
-            'video': video_path,
-            'segment': [begin_t, end_t],
-            'n_frames': n_frames,
-            'video_id': video_names[i][:-14].split('/')[1]
-        }
-        if len(annotations) != 0:
-            sample['label'] = class_to_idx[annotations[i]['label']]
-        else:
-            sample['label'] = -1
-
-        if n_samples_for_each_video == 1:
-            sample['frame_indices'] = list(range(1, n_frames + 1))
-            dataset.append(sample)
-        else:
-            if n_samples_for_each_video > 1:
-                step = max(1,
-                           math.ceil((n_frames - 1 - sample_duration) /
-                                     (n_samples_for_each_video - 1)))
+            if subset == 'training':
+                video_path = os.path.join(root_path, 'train', video_names[i])
             else:
-                step = sample_duration
-            for j in range(1, n_frames, step):
-                sample_j = copy.deepcopy(sample)
-                sample_j['frame_indices'] = list(
-                    range(j, min(n_frames + 1, j + sample_duration)))
-                dataset.append(sample_j)
+                video_path = os.path.join(root_path, 'val', video_names[i])
+            if not os.path.exists(video_path):
+                continue
+
+            if i % 1000 == 0:
+                print('dataset loading [{}/{}]'.format(i, len(video_names)))
+
+            n_frames_file_path = os.path.join(video_path, 'n_frames')
+            n_frames = int(load_value_file(n_frames_file_path))
+            if n_frames <= 0:
+                continue
+
+            begin_t = 1
+            end_t = n_frames
+            sample = {
+                'video': video_path,
+                'segment': [begin_t, end_t],
+                'n_frames': n_frames,
+                'video_id': video_names[i][:-14].split('/')[1]
+            }
+            if len(annotations) != 0:
+                sample['label'] = class_to_idx[annotations[i]['label']]
+            else:
+                sample['label'] = -1
+
+            if n_samples_for_each_video == 1:
+                sample['frame_indices'] = list(range(1, n_frames + 1))
+                dataset.append(sample)
+            else:
+                if n_samples_for_each_video > 1:
+                    step = max(1,
+                               math.ceil((n_frames - 1 - sample_duration) /
+                                         (n_samples_for_each_video - 1)))
+                else:
+                    step = sample_duration
+                for j in range(1, n_frames, step):
+                    sample_j = copy.deepcopy(sample)
+                    sample_j['frame_indices'] = list(
+                        range(j, min(n_frames + 1, j + sample_duration)))
+                    dataset.append(sample_j)
+
+        if not os.path.exists(os.path.join(root_path, 'cache')):
+            os.makedirs(os.path.join(root_path, 'cache'))
+        with open(os.path.join(root_path, 'cache', 'dataset_{}.json'.format(subset)), 'w') as f:
+            json.dump(dataset, f)
 
     return dataset, idx_to_class
 

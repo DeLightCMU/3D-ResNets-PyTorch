@@ -22,23 +22,18 @@ from validation import val_epoch
 import test
 from FGS3D import FGS3D
 
-def get_fine_tuning_parameters(model, ft_begin_index):
-    if ft_begin_index == 0:
+def get_fine_tuning_parameters(model, fixed_names=None):
+    if fixed_names is None:
         return model.parameters()
-
-    ft_module_names = []
-    for i in range(ft_begin_index, 5):
-        ft_module_names.append('layer{}'.format(i))
-    ft_module_names.append('fc')
 
     parameters = []
     for k, v in model.named_parameters():
-        for ft_module in ft_module_names:
-            if ft_module in k:
+        for fixed_name in fixed_names:
+            if fixed_name not in k:
                 parameters.append({'params': v})
                 break
-        else:
-            parameters.append({'params': v, 'lr': 0.0})
+            else:
+                parameters.append({'params': v, 'lr': 0.0})
 
     return parameters
 
@@ -71,7 +66,7 @@ if __name__ == '__main__':
 
         model = FGS3D(num_classes=num_class, dropout_keep_prob=0.0)
         model = torch.nn.DataParallel(model).cuda()
-        parameters = get_fine_tuning_parameters(model, opt.ft_begin_index)
+        parameters = get_fine_tuning_parameters(model, ['flownets'])
     else:
         IOError(opt.arch)
 
