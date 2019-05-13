@@ -9,24 +9,24 @@ from models.warping import warp
 
 class FGS3D(nn.Module):
 
-    def __init__(self, num_classes=400, input_channel=3, num_frames=64, num_keyframe=8):
+    def __init__(self, num_classes=400, num_frames=64, num_keyframe=8, dropout_keep_prob=0.5):
         super(FGS3D, self).__init__()
 
         self.num_frames = num_frames
         self.num_keyframe = num_keyframe
         self.num_classes = num_classes
-        dropout_keep_prob = 0.0
+        self.dropout_keep_prob = dropout_keep_prob
 
         self.resnet_feature = resnet34(pretrained=True, num_classes=400)
-        self.optical_flow = flownets()
-        self.warp = warp()
+        FlowNet_state_dict = torch.load('/home/weik/pretrainedmodels/FlowNetS/flownets_from_caffe.pth.tar.pth')
+        self.optical_flow = flownets(FlowNet_state_dict)
         self.inception_3D_1 = InceptionModule(512, [192,96,208,16,48,64], 'mixed_4a')
         self.inception_3D_2 = InceptionModule(192+208+48+64, [160,112,224,24,64,64], 'mixed_4b')
         self.inception_3D_3 = InceptionModule(160+224+64+64, [128,128,256,24,64,64], 'mixed_4c')
 
         self.avg_pool = nn.AvgPool3d(kernel_size=[2, 7, 7],
                                      stride=(1, 1, 1))
-        self.dropout = nn.Dropout(dropout_keep_prob)
+        self.dropout = nn.Dropout(self.dropout_keep_prob)
         self.logits = Unit3D(in_channels=128+256+64+64, output_channels=self.num_classes,
                              kernel_shape=[1, 1, 1],
                              padding=0,
@@ -39,22 +39,22 @@ class FGS3D(nn.Module):
         self.softmax_img = nn.Softmax()
 
     def forward(self, x):
-        # x: [1 64 3 224 224]
+        # x: [1 3 64 112 112]
         num_mini_clips = int(self.num_keyframe)
         lenght_mini_clip = int(self.num_frames / self.num_keyframe)
 
         ###############################################################
         # data preparing
         # slice key frames
-        x_trunk = torch.split(x, lenght_mini_clip, 1)  # x_trunk: 64 * [1 1 3 224 224]
+        x_trunk = torch.split(x, 1, dim=2)  # x_trunk: 64 * [1 3 1 224 224]
 
-        data_bef = torch.cat(x_trunk[0:-2], 1) # data_bef: [1 62 3 224 224]
-        data_curr = torch.cat(x_trunk[1:-1], 1)  # data_curr: [1 62 3 224 224]
-        data_aft = torch.cat(x_trunk[2:], 1)  # data_aft: [1 62 3 224 224]
+        data_bef = torch.cat(x_trunk[0:-2], dim=1) # data_bef: [1 3 62 224 224]
+        data_curr = torch.cat(x_trunk[1:-1], dim=1)  # data_curr: [1 3 62 224 224]
+        data_aft = torch.cat(x_trunk[2:], dim=1)  # data_aft: [1 3 62 224 224]
 
         # key frames
-        data_key1 = x_trunk[0]                        # data_key1: [1 1 3 224 224]
-        data_key2 = x_trunk[0 + lenght_mini_clip * 1] # data_key2: [1 1 3 224 224]
+        data_key1 = x_trunk[0]                        # data_key1: [1 3 1 224 224]
+        data_key2 = x_trunk[0 + lenght_mini_clip * 1] # data_key2: [1 3 1 224 224]
         data_key3 = x_trunk[0 + lenght_mini_clip * 2]
         data_key4 = x_trunk[0 + lenght_mini_clip * 3]
         data_key5 = x_trunk[0 + lenght_mini_clip * 4]
@@ -169,5 +169,5 @@ class FGS3D(nn.Module):
 
     def warping_function(self, flow, feat_cam, duration):
         feat_keys = torch.cat(*[feat_cam] * (duration - 1), dim=0)
-        return self.warp(feat_keys, flow)  # [7 512 7 7]
+        return warp(feat_keys, flow)  # [7 512 7 7]
 
