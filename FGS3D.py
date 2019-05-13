@@ -18,46 +18,29 @@ class FGS3D(nn.Module):
         self.dropout_keep_prob = dropout_keep_prob
 
         self.resnet_feature = resnet34(pretrained=True, num_classes=400)
-<<<<<<< HEAD
+
         self.flownetresize = nn.AvgPool2d(kernel_size=8, stride=8)
         FlowNet_state_dict = torch.load('/home/weik/pretrainedmodels/FlowNetS/flownets_from_caffe.pth.tar.pth')
         self.flownets = flownets(FlowNet_state_dict)
-=======
-        FlowNet_state_dict = torch.load('/home/weik/pretrainedmodels/FlowNetS/flownets_from_caffe.pth.tar.pth')
-        self.optical_flow = flownets(FlowNet_state_dict)
->>>>>>> 90119755c114b12d9538c240f4b103a48c9a6c54
+
         self.inception_3D_1 = InceptionModule(512, [192,96,208,16,48,64], 'mixed_4a')
         self.inception_3D_2 = InceptionModule(192+208+48+64, [160,112,224,24,64,64], 'mixed_4b')
         self.inception_3D_3 = InceptionModule(160+224+64+64, [128,128,256,24,64,64], 'mixed_4c')
 
         self.avg_pool = nn.AvgPool3d(kernel_size=[2, 7, 7],
-<<<<<<< HEAD
+
                                      stride=(2, 1, 1))
         self.dropout = nn.Dropout(self.dropout_keep_prob)
         self.logits = nn.Linear(512*32, self.num_classes)
         torch.nn.init.xavier_uniform(self.logits.weight)
         torch.nn.init.constant(self.logits.bias, 0.1)
-=======
-                                     stride=(1, 1, 1))
-        self.dropout = nn.Dropout(self.dropout_keep_prob)
-        self.logits = Unit3D(in_channels=128+256+64+64, output_channels=self.num_classes,
-                             kernel_shape=[1, 1, 1],
-                             padding=0,
-                             activation_fn=None,
-                             use_batch_norm=False,
-                             use_bias=True,
-                             name='logits')
->>>>>>> 90119755c114b12d9538c240f4b103a48c9a6c54
-
         self.softmax_cls = nn.Softmax()
         self.softmax_img = nn.Softmax()
 
     def forward(self, x):
-<<<<<<< HEAD
+
         # x: [batchisze/n_gpu 3 64 112 112]
-=======
-        # x: [1 3 64 112 112]
->>>>>>> 90119755c114b12d9538c240f4b103a48c9a6c54
+
         num_mini_clips = int(self.num_keyframe)
         lenght_mini_clip = int(self.num_frames / self.num_keyframe)
 
@@ -66,15 +49,10 @@ class FGS3D(nn.Module):
         # slice key frames
         x_trunk = torch.split(x, 1, dim=2)  # x_trunk: 64 * [1 3 1 224 224]
 
-<<<<<<< HEAD
+
         # data_bef = torch.cat(x_trunk[0:-2], dim=2) # data_bef: [1 3 62 224 224]
         # data_curr = torch.cat(x_trunk[1:-1], dim=2)  # data_curr: [1 3 62 224 224]
         # data_aft = torch.cat(x_trunk[2:], dim=2)  # data_aft: [1 3 62 224 224]
-=======
-        data_bef = torch.cat(x_trunk[0:-2], dim=1) # data_bef: [1 3 62 224 224]
-        data_curr = torch.cat(x_trunk[1:-1], dim=1)  # data_curr: [1 3 62 224 224]
-        data_aft = torch.cat(x_trunk[2:], dim=1)  # data_aft: [1 3 62 224 224]
->>>>>>> 90119755c114b12d9538c240f4b103a48c9a6c54
 
         # key frames
         data_key1 = x_trunk[0]                        # data_key1: [1 3 1 224 224]
@@ -199,10 +177,8 @@ class FGS3D(nn.Module):
         return pred_keyframes, pred_video
 
     def warping_function(self, flow, feat_cam, duration):
-<<<<<<< HEAD
+
         feat_keys = torch.cat((feat_cam, feat_cam, feat_cam, feat_cam, feat_cam, feat_cam, feat_cam), dim=0)
-=======
-        feat_keys = torch.cat(*[feat_cam] * (duration - 1), dim=0)
->>>>>>> 90119755c114b12d9538c240f4b103a48c9a6c54
+
         return warp(feat_keys, flow)  # [7 512 7 7]
 
