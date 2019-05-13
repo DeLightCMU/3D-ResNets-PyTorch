@@ -68,11 +68,8 @@ if __name__ == '__main__':
     num_class = opt.n_classes
     if opt.arch == 'FGS3D-0':
         input_channel = 3 if modality == 'RGB' else 2
-<<<<<<< HEAD
+
         model = FGS3D(num_classes=num_class, dropout_keep_prob=0.0)
-=======
-        model = FGS3D(num_classes=num_class, dropout_keep_prob=1.0)
->>>>>>> 90119755c114b12d9538c240f4b103a48c9a6c54
         model = torch.nn.DataParallel(model).cuda()
         parameters = get_fine_tuning_parameters(model, opt.ft_begin_index)
     else:
