@@ -14,11 +14,13 @@ def train_epoch(epoch, data_loader, model, criterion, optimizer, opt,
     model.train()
 
     batch_time = AverageMeter()
+    epoch_time = AverageMeter()
     data_time = AverageMeter()
     losses = AverageMeter()
     accuracies = AverageMeter()
     accuracies_img = AverageMeter()
 
+    epoch_end_time = time.time()
     end_time = time.time()
     for i, (inputs, targets) in enumerate(data_loader):
         data_time.update(time.time() - end_time)
@@ -52,7 +54,6 @@ def train_epoch(epoch, data_loader, model, criterion, optimizer, opt,
         acc_img = calculate_accuracy(outputs, targets_img)
         accuracies_img.update(acc_img, inputs.size(0))
         losses.update(loss.data.cpu(), inputs.size(0))
-        lr = optimizer.param_groups[0]['lr']
 
         optimizer.zero_grad()
         loss.backward()
@@ -86,12 +87,15 @@ def train_epoch(epoch, data_loader, model, criterion, optimizer, opt,
                   acc_vid=accuracies,
                   acc_img=accuracies_img))
 
+    epoch_time.update(time.time() - epoch_end_time)
+
     epoch_logger.log({
         'epoch': epoch,
         'loss': losses.avg,
         'acc': accuracies.avg,
         'acc_img': accuracies_img.avg,
-        'lr': optimizer.param_groups[0]['lr']
+        'lr': optimizer.param_groups[-1]['lr'],
+        'epoch_time': epoch_time.val
     })
 
     if epoch % opt.checkpoint == 0:

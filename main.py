@@ -133,8 +133,8 @@ if __name__ == '__main__':
             dampening=dampening,
             weight_decay=opt.weight_decay,
             nesterov=opt.nesterov)
-        scheduler = lr_scheduler.ReduceLROnPlateau(
-            optimizer, 'min', patience=opt.lr_patience)
+        # scheduler = lr_scheduler.ReduceLROnPlateau(optimizer, 'min', patience=opt.lr_patience)
+        scheduler = lr_scheduler.StepLR(optimizer, step_size=5)
     if not opt.no_val:
         spatial_transform = Compose([
             Scale(opt.sample_size),
