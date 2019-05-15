@@ -6,6 +6,7 @@ import torch
 from torch import nn
 from torch import optim
 from torch.optim import lr_scheduler
+import torchvision.transforms as transforms
 
 from opts import parse_opts
 from mean import get_mean, get_std
@@ -21,6 +22,7 @@ from train import train_epoch
 from validation import val_epoch
 import test
 from FGS3D import FGS3D
+from FGS3DM import FGS3DM
 
 def get_fine_tuning_parameters(model, fixed_names=None):
     if fixed_names is None:
@@ -28,12 +30,18 @@ def get_fine_tuning_parameters(model, fixed_names=None):
 
     parameters = []
     for k, v in model.named_parameters():
-        for fixed_name in fixed_names:
-            if fixed_name not in k:
-                parameters.append({'params': v})
-                break
-            else:
+        if 'resnet_feature.fc' in k:
+            parameters.append({'params': v})
+        else:
+            fixed_flag = False
+            for fixed_name in fixed_names:
+                if fixed_name in k:
+                    fixed_flag = True
+                    break
+            if fixed_flag:
                 parameters.append({'params': v, 'lr': 0.0})
+            else:
+                parameters.append({'params': v})
 
     return parameters
 
@@ -64,9 +72,9 @@ if __name__ == '__main__':
     if opt.arch == 'FGS3D-0':
         input_channel = 3 if modality == 'RGB' else 2
 
-        model = FGS3D(num_classes=num_class, dropout_keep_prob=0.0)
+        model = FGS3DM(num_classes=num_class, dropout_keep_prob=0.0)
         model = torch.nn.DataParallel(model).cuda()
-        parameters = get_fine_tuning_parameters(model, ['flownets'])
+        parameters = get_fine_tuning_parameters(model, ['flownets', 'resnet_feature'])
     else:
         IOError(opt.arch)
 
@@ -94,7 +102,8 @@ if __name__ == '__main__':
         spatial_transform = Compose([
             crop_method,
             RandomHorizontalFlip(),
-            ToTensor(opt.norm_value), norm_method
+            ToTensor(opt.norm_value),
+            norm_method
         ])
         temporal_transform = TemporalRandomCrop(opt.sample_duration)
         target_transform = ClassLabel()

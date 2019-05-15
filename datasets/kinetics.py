@@ -91,8 +91,9 @@ def make_dataset(root_path, annotation_path, subset, n_samples_for_each_video,
     for name, label in class_to_idx.items():
         idx_to_class[label] = name
 
-    if os.path.exists(os.path.join(root_path, 'cache', 'dataset_{}.json'.format(subset))):
-        with open(os.path.join(root_path, 'cache', 'dataset_{}.json'.format(subset)), 'r') as f:
+    cache_folder = 'cache'
+    if os.path.exists(os.path.join(root_path, cache_folder, 'dataset_{}.json'.format(subset))):
+        with open(os.path.join(root_path, cache_folder, 'dataset_{}.json'.format(subset)), 'r') as f:
             dataset = json.load(f)
     else:
         dataset = []
@@ -142,9 +143,9 @@ def make_dataset(root_path, annotation_path, subset, n_samples_for_each_video,
                         range(j, min(n_frames + 1, j + sample_duration)))
                     dataset.append(sample_j)
 
-        if not os.path.exists(os.path.join(root_path, 'cache')):
-            os.makedirs(os.path.join(root_path, 'cache'))
-        with open(os.path.join(root_path, 'cache', 'dataset_{}.json'.format(subset)), 'w') as f:
+        if not os.path.exists(os.path.join(root_path, cache_folder)):
+            os.makedirs(os.path.join(root_path, cache_folder))
+        with open(os.path.join(root_path, cache_folder, 'dataset_{}.json'.format(subset)), 'w') as f:
             json.dump(dataset, f)
 
     return dataset, idx_to_class

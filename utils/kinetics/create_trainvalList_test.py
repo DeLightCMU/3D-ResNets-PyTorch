@@ -33,16 +33,16 @@ for idx_split, split in enumerate(splits):
 
         if os.path.exists(os.path.join(dataset_path, split, class_name, video_name)):
             if len(os.listdir(os.path.join(dataset_path, split, class_name, video_name))) == 1:
-                fzero.write('{0} {1}\n'.format(os.path.join(class_name, video_name), class_name_list.index(class_name)))
+                fzero.write('{0} {1}\n'.format(video_name, class_name_list.index(class_name)))
                 zero_count = zero_count + 1
             else:
-                f.write('{0} {1}\n'.format(os.path.join(class_name, video_name), class_name_list.index(class_name)))
+                f.write('{0} {1}\n'.format(video_name, class_name_list.index(class_name)))
                 count = count + 1
         else:
-            flost.write('{0} {1}\n'.format(os.path.join(class_name, video_name), class_name_list.index(class_name)))
+            flost.write('{0} {1}\n'.format(video_name, class_name_list.index(class_name)))
             lost_count = lost_count + 1
 
-        if count > 100:
+        if count > 5000:
             print(split + 'count:' + str(count))
             print(split + 'lost:' + str(lost_count))
             print(split + 'zero:' + str(zero_count))

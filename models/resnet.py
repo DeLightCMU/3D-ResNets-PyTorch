@@ -144,10 +144,14 @@ class ResNet(nn.Module):
                                        dilate=replace_stride_with_dilation[1])
         self.layer4 = self._make_layer(block, 512, layers[3], stride=2,
                                        dilate=replace_stride_with_dilation[2])
+        """
+        self.feat_conv_3x3 = nn.Conv2d(in_channels=1024, out_channels=1024, kernel_size=3, padding=6, dilation=6)
+        torch.nn.init.normal_(self.feat_conv_3x3.weight, mean=0., std=0.01)
+        torch.nn.init.constant(self.feat_conv_3x3.bias, 0.0)
+        self.feat_conv_3x3_relu = nn.ReLU(inplace=True)
+        """
         self.avgpool = nn.AdaptiveAvgPool2d((1, 1))
-        self.fc1 = nn.Linear(512 * block.expansion, num_classes)
-        torch.nn.init.xavier_uniform(self.fc1.weight)
-        torch.nn.init.constant(self.fc1.bias, 0.1)
+        self.fc = nn.Linear(512 * block.expansion, num_classes)
 
         for m in self.modules():
             if isinstance(m, nn.Conv2d):
@@ -198,15 +202,17 @@ class ResNet(nn.Module):
 
         x = self.layer1(x)
         x = self.layer2(x)
-        x = self.layer3(x)
-        x_fea = self.layer4(x)
+        x_fea = self.layer3(x)
+        # x_fea = self.feat_conv_3x3(x)
+        # x_fea = self.feat_conv_3x3_relu(x_fea)
 
-        x = self.avgpool(x_fea)
+        x = self.layer4(x_fea)
+        x = self.avgpool(x)
         x = x.reshape(x.size(0), -1)
-        x = self.fc1(x)
+        x = self.fc(x)
 
         return x_fea, x
-
+    """
     def load_state_dict(self, target_weights):
         own_state = self.state_dict()
 
@@ -219,6 +225,7 @@ class ResNet(nn.Module):
                 print('{} meets error in locating parameters'.format(name))
         missing = set(own_state.keys()) - set(target_weights.keys())
         print('{} keys are not holded in target checkpoints'.format(len(missing)))
+    """
 
 
 def _resnet(arch, inplanes, planes, pretrained, progress, **kwargs):

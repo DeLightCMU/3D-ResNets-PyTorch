@@ -26,15 +26,20 @@ def val_epoch(epoch, data_loader, model, criterion, opt, logger):
             targets_img = torch.cat((targets, targets, targets, targets, targets, targets, targets, targets), dim=0)
             targets_img = targets_img.cuda(non_blocking=True)
         inputs = Variable(inputs)
+        outputs = model(inputs)
+        """
         targets_vid = Variable(targets_vid)
         targets_img = Variable(targets_img)
-
-        outputs = model(inputs)
         loss_vid = criterion(outputs[1], targets_vid)
         loss_img = criterion(outputs[0], targets_img)
         loss = loss_vid + loss_img
         acc = calculate_accuracy(outputs[1], targets_vid)
-
+        """
+        targets_vid = Variable(targets_vid)
+        targets_img = Variable(targets_img)
+        loss_img = criterion(outputs, targets_img)
+        loss = loss_img
+        acc = calculate_accuracy(outputs, targets_img)
         losses.update(loss.data.cpu(), inputs.size(0))
         accuracies.update(acc, inputs.size(0))
 
