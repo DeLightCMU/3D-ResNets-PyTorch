@@ -209,6 +209,7 @@ class CornerCrop(object):
         self.crop_positions = ['c', 'tl', 'tr', 'bl', 'br']
 
     def __call__(self, img):
+        self.randomize_parameters()
         image_width = img.size[0]
         image_height = img.size[1]
 
@@ -260,6 +261,7 @@ class RandomHorizontalFlip(object):
         Returns:
             PIL.Image: Randomly flipped image.
         """
+        self.randomize_parameters()
         if self.p < 0.5:
             return img.transpose(Image.FLIP_LEFT_RIGHT)
         return img
@@ -291,6 +293,7 @@ class MultiScaleCornerCrop(object):
         self.crop_positions = crop_positions
 
     def __call__(self, img):
+        self.randomize_parameters()
         min_length = min(img.size[0], img.size[1])
         crop_size = int(min_length * self.scale)
 
@@ -345,6 +348,7 @@ class MultiScaleRandomCrop(object):
         self.interpolation = interpolation
 
     def __call__(self, img):
+        self.randomize_parameters()
         min_length = min(img.size[0], img.size[1])
         crop_size = int(min_length * self.scale)
 

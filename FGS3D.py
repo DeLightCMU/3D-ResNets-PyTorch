@@ -5,7 +5,11 @@ from models.resnet import resnet101
 from models.FlowNetS import flownets
 from models.inception3D import InceptionModule, Unit3D
 from models.warping import warp
+from collections import OrderedDict
 
+def set_parameter_requires_grad(model):
+    for param in model.parameters():
+        param.requires_grad = False
 
 class FGS3D(nn.Module):
 
@@ -17,26 +21,47 @@ class FGS3D(nn.Module):
         self.num_classes = num_classes
         self.dropout_keep_prob = dropout_keep_prob
 
-        self.resnet_feature = resnet101(pretrained=True)
+
+        ##############################################
+        # Load resnet model
+        ##############################################
+        self.resnet_feature = resnet101(pretrained=False)
         num_ftrs = self.resnet_feature.fc.in_features
         self.resnet_feature.fc = nn.Linear(num_ftrs, num_classes)
-        """
+        ResNet_state_dict = torch.load('/data/Kinetics400/result/ResNetImg_lr0.00025/F90epochs/save_145.pth')
+        ResNet_state_dict = ResNet_state_dict['state_dict']
+        new_state_dict = OrderedDict()
+        for k, v in ResNet_state_dict.items():
+            name = k[22:]  # remove `module.`
+            new_state_dict[name] = v
+        self.resnet_feature.load_state_dict(new_state_dict)
+        set_parameter_requires_grad(self.resnet_feature)
+
+        self.feat_conv_3x3 = nn.Conv2d(in_channels=1024, out_channels=1024, kernel_size=3, padding=6, dilation=6)
+        torch.nn.init.normal_(self.feat_conv_3x3.weight, mean=0., std=0.01)
+        torch.nn.init.constant_(self.feat_conv_3x3.bias, 0.0)
+        self.feat_conv_3x3_relu = nn.ReLU(inplace=True)
+
+
+        ##############################################
+        # Load flownet
+        ##############################################
         self.flownetresize = nn.AvgPool2d(kernel_size=4, stride=4)
         FlowNet_state_dict = torch.load('/home/weik/pretrainedmodels/FlowNetS/flownets_from_caffe.pth.tar.pth')
         self.flownets = flownets(FlowNet_state_dict)
+        set_parameter_requires_grad(self.flownets)
 
+        # self.inception_3D_1 = InceptionModule(1024, [112, 144, 288, 32, 64, 64], 'mixed_4f', )
         self.inception_3D_1 = InceptionModule(1024, [256,160,320,32,128,128], 'mixed_4f')
         self.inception_3D_2 = InceptionModule(256+320+128+128, [256,160,320,32,128,128], 'mixed_5b')
         self.inception_3D_3 = InceptionModule(256+320+128+128, [384,192,384,48,128,128], 'mixed_5c')
 
         self.avg_pool = nn.AvgPool3d(kernel_size=[2, 14, 14], stride=(2, 1, 1))
         self.dropout = nn.Dropout(self.dropout_keep_prob)
-        self.logits = nn.Linear(1024*32, self.num_classes)
-        torch.nn.init.xavier_uniform_(self.logits.weight)
-        torch.nn.init.constant_(self.logits.bias, 0.1)
-        """
-        # self.softmax_cls = nn.Softmax()
-        # self.softmax_img = nn.Softmax()
+        self.logits = nn.Linear((384+384+128+128)*32, self.num_classes)
+        torch.nn.init.normal_(self.logits.weight, mean=0.0, std=0.01)
+        torch.nn.init.constant_(self.logits.bias, 0.0)
+
 
     def forward(self, x):
 
@@ -55,7 +80,7 @@ class FGS3D(nn.Module):
         # data_curr = torch.cat(x_trunk[1:-1], dim=2)  # data_curr: [1 3 62 224 224]
         # data_aft = torch.cat(x_trunk[2:], dim=2)  # data_aft: [1 3 62 224 224]
 
-        """
+
         # key frames
         data_key1 = x_trunk[0]                        # data_key1: [1 3 1 224 224]
         data_key2 = x_trunk[0 + lenght_mini_clip * 1] # data_key2: [1 3 1 224 224]
@@ -75,7 +100,8 @@ class FGS3D(nn.Module):
         nokey6 = torch.cat(x_trunk[1 + lenght_mini_clip * 5:lenght_mini_clip * 6], dim=2)
         nokey7 = torch.cat(x_trunk[1 + lenght_mini_clip * 6:lenght_mini_clip * 7], dim=2)
         nokey8 = torch.cat(x_trunk[1 + lenght_mini_clip * 7:], dim=2)
-        """
+
+
         ###############################################################
         # processing for key frames
         # concat key frames
@@ -86,16 +112,20 @@ class FGS3D(nn.Module):
         x_keyframes = x_keyframes.permute(1, 0, 2, 3)
 
         # extract features for key frames
+        self.resnet_feature.eval()
         feature_keyframe, pred_keyframes = self.resnet_feature(x_keyframes)   # [8 1024 14 14] [8 400]
+
+        # feature_keyframe, pred_keyframes = self.resnet_feature(x)
         # pred_keyframes = self.softmax_img(pred_keyframes)
         # pred_keyframes = torch.unsqueeze(pred_keyframes, dim=0)
 
 
-        """
         ###############################################################
         # processing for 3D conv
         # compute optical flow
         # slice feature
+        # feat_conv_3x3 = self.feat_conv_3x3(feature_keyframe)
+        # feat_conv_3x3 = self.feat_conv_3x3_relu(feat_conv_3x3)
         feat_slices = torch.split(feature_keyframe, dim=0, split_size_or_sections=1)  # 8*[1 1024 14 14]
         
         flow_data_key1 = torch.squeeze(
@@ -128,6 +158,7 @@ class FGS3D(nn.Module):
                                             flow_data5, flow_data6, flow_data7, flow_data8), dim=0)   # [56 6 224 224]
         concat_flow_data_resize = self.flownetresize(concat_flow_data)  # [56 6 56 56]
         # flow_big = self.flownets(concat_flow_data)  # [56 2 56 56]
+        self.flownets.eval()
         flow = self.flownets(concat_flow_data_resize)  # [56 2 14 14]
 
 
@@ -175,13 +206,12 @@ class FGS3D(nn.Module):
         # prediction
         pred_video = self.logits(feat_flat)
 
-        # loss for video
-        pred_video = self.softmax_cls(pred_video)
+        # # loss for video
+        # pred_video = self.softmax_cls(pred_video)
         pred_video = torch.unsqueeze(pred_video, dim=0)
 
         return pred_keyframes, pred_video
-        """
-        return pred_keyframes
+
 
     def warping_function(self, flow, feat_cam, duration):
 

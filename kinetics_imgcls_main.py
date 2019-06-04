@@ -1,27 +1,20 @@
 import os
-import sys
 import json
-import numpy as np
 import torch
 from torch import nn
 from torch import optim
 from torch.optim import lr_scheduler
-import torchvision
 
 from opts import parse_opts
 from mean import get_mean, get_std
 from spatial_transforms import (
-    Compose, Normalize, Scale, CenterCrop, CornerCrop, MultiScaleCornerCrop,
+    Compose, Normalize, Scale, CenterCrop, MultiScaleCornerCrop,
     MultiScaleRandomCrop, RandomHorizontalFlip, ToTensor)
-from temporal_transforms import LoopPadding, TemporalRandomCrop, TemporalBeginCrop
-from target_transforms import ClassLabel, VideoID
-from dataset import get_training_set, get_validation_set, get_test_set
+from kinetics_img_dataset import KineticsImg
 from utils import Logger
 from train import train_epoch
 from validation import val_epoch
-import test
-from FGS3D import FGS3D
-from FGS3DM import FGS3DM
+from FGS3D_img import FGS3DIMG
 
 
 def get_fine_tuning_parameters(model, fixed_names=None):
@@ -74,19 +67,12 @@ if __name__ == '__main__':
     if opt.arch == 'FGS3D-0':
         input_channel = 3 if modality == 'RGB' else 2
 
-        model = FGS3D(num_classes=num_class, dropout_keep_prob=0.0)
+        model = FGS3DIMG(num_classes=num_class, dropout_keep_prob=0.0)
         model = torch.nn.DataParallel(model).cuda()
-        params_to_update = model.parameters()
-        print("Params to learn:")
-        params_to_update = []
-        for name, param in model.named_parameters():
-            if param.requires_grad == True:
-                params_to_update.append(param)
-                print("\t", name)
-        # parameters = get_fine_tuning_parameters(model, ['flownets', 'resnet_feature.conv1', 'resnet_feature.bn1',
-        #                                                 'resnet_feature.layer1', 'resnet_feature.layer2',
-        #                                                 'resnet_feature.layer3', 'resnet_feature.layer4',
-        #                                                 'resnet_feature.layer5', 'resnet_feature.fc'])
+        parameters = get_fine_tuning_parameters(model, ['flownets', 'resnet_feature.conv1', 'resnet_feature.bn',
+                                                        'resnet_feature.layer1', 'resnet_feature.layer2',
+                                                        'resnet_feature.layer3', 'resnet_feature.layer4',
+                                                        'resnet_feature.layer5', 'resnet_feature.fc'])
     else:
         IOError(opt.arch)
 
@@ -117,14 +103,12 @@ if __name__ == '__main__':
             ToTensor(opt.norm_value),
             norm_method
         ])
-        temporal_transform = TemporalBeginCrop(opt.sample_duration)
-        target_transform = ClassLabel()
-        training_data = get_training_set(opt, spatial_transform,
-                                         temporal_transform, target_transform)
+
+        training_data = KineticsImg('/data/Kinetics400/trainvalList_test/train_imglist_all_s30.cvs', spatial_transform=spatial_transform)
         train_loader = torch.utils.data.DataLoader(
             training_data,
             batch_size=opt.batch_size,
-            shuffle=False,
+            shuffle=True,
             num_workers=opt.n_threads,
             pin_memory=True)
         train_logger = Logger(
@@ -139,24 +123,21 @@ if __name__ == '__main__':
         else:
             dampening = opt.dampening
         optimizer = optim.SGD(
-            params_to_update,
+            parameters,
             lr=opt.learning_rate,
             momentum=opt.momentum,
             dampening=dampening,
             weight_decay=opt.weight_decay,
             nesterov=opt.nesterov)
-        # scheduler = lr_scheduler.ReduceLROnPlateau(optimizer, 'min', patience=opt.lr_patience)
-        scheduler = lr_scheduler.StepLR(optimizer, step_size=5)
+        scheduler = lr_scheduler.ReduceLROnPlateau(optimizer, 'min', patience=opt.lr_patience)
+        # scheduler = lr_scheduler.StepLR(optimizer, step_size=30)
     if not opt.no_val:
         spatial_transform = Compose([
             Scale(opt.sample_size),
             CenterCrop(opt.sample_size),
             ToTensor(opt.norm_value), norm_method
         ])
-        temporal_transform = LoopPadding(opt.sample_duration)
-        target_transform = ClassLabel()
-        validation_data = get_validation_set(
-            opt, spatial_transform, temporal_transform, target_transform)
+        validation_data = KineticsImg('/data/Kinetics400/trainvalList_test/val_imglist_all_s30.cvs', spatial_transform=spatial_transform)
         val_loader = torch.utils.data.DataLoader(
             validation_data,
             batch_size=opt.batch_size,
@@ -187,22 +168,3 @@ if __name__ == '__main__':
 
         if not opt.no_train and not opt.no_val:
             scheduler.step(validation_loss)
-
-    if opt.test:
-        spatial_transform = Compose([
-            Scale(int(opt.sample_size / opt.scale_in_test)),
-            CornerCrop(opt.sample_size, opt.crop_position_in_test),
-            ToTensor(opt.norm_value), norm_method
-        ])
-        temporal_transform = LoopPadding(opt.sample_duration)
-        target_transform = VideoID()
-
-        test_data = get_test_set(opt, spatial_transform, temporal_transform,
-                                 target_transform)
-        test_loader = torch.utils.data.DataLoader(
-            test_data,
-            batch_size=opt.batch_size,
-            shuffle=False,
-            num_workers=opt.n_threads,
-            pin_memory=True)
-        test.test(test_loader, model, opt, test_data.class_names)

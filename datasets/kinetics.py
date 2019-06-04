@@ -6,6 +6,7 @@ import math
 import functools
 import json
 import copy
+import numpy as np
 
 from utils import load_value_file
 
@@ -91,9 +92,8 @@ def make_dataset(root_path, annotation_path, subset, n_samples_for_each_video,
     for name, label in class_to_idx.items():
         idx_to_class[label] = name
 
-    cache_folder = 'cache'
-    if os.path.exists(os.path.join(root_path, cache_folder, 'dataset_{}.json'.format(subset))):
-        with open(os.path.join(root_path, cache_folder, 'dataset_{}.json'.format(subset)), 'r') as f:
+    if os.path.exists(os.path.join(os.path.dirname(annotation_path), 'cache', 'dataset_{}.json'.format(subset))):
+        with open(os.path.join(os.path.dirname(annotation_path), 'cache', 'dataset_{}.json'.format(subset)), 'r') as f:
             dataset = json.load(f)
     else:
         dataset = []
@@ -143,9 +143,9 @@ def make_dataset(root_path, annotation_path, subset, n_samples_for_each_video,
                         range(j, min(n_frames + 1, j + sample_duration)))
                     dataset.append(sample_j)
 
-        if not os.path.exists(os.path.join(root_path, cache_folder)):
-            os.makedirs(os.path.join(root_path, cache_folder))
-        with open(os.path.join(root_path, cache_folder, 'dataset_{}.json'.format(subset)), 'w') as f:
+        if not os.path.exists(os.path.join(os.path.dirname(annotation_path), 'cache')):
+            os.makedirs(os.path.join(os.path.dirname(annotation_path), 'cache'))
+        with open(os.path.join(os.path.dirname(annotation_path), 'cache', 'dataset_{}.json'.format(subset)), 'w') as f:
             json.dump(dataset, f)
 
     return dataset, idx_to_class
@@ -206,10 +206,12 @@ class Kinetics(data.Dataset):
         clip = torch.stack(clip, 0).permute(1, 0, 2, 3)
 
         target = self.data[index]
+        target_img = self.data[index]
         if self.target_transform is not None:
             target = self.target_transform(target)
-
-        return clip, target
+            # 8 key frames
+            target_img = np.asanyarray([target] * 8)
+        return clip, target, target_img
 
     def __len__(self):
         return len(self.data)

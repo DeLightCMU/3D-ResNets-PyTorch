@@ -1,6 +1,7 @@
 import torch.nn as nn
 import torch
 from .utils import load_state_dict_from_url
+from .batch_norm import FrozenBatchNorm2d
 
 
 __all__ = ['ResNet', 'resnet18', 'resnet34', 'resnet50', 'resnet101',
@@ -144,12 +145,7 @@ class ResNet(nn.Module):
                                        dilate=replace_stride_with_dilation[1])
         self.layer4 = self._make_layer(block, 512, layers[3], stride=2,
                                        dilate=replace_stride_with_dilation[2])
-        """
-        self.feat_conv_3x3 = nn.Conv2d(in_channels=1024, out_channels=1024, kernel_size=3, padding=6, dilation=6)
-        torch.nn.init.normal_(self.feat_conv_3x3.weight, mean=0., std=0.01)
-        torch.nn.init.constant(self.feat_conv_3x3.bias, 0.0)
-        self.feat_conv_3x3_relu = nn.ReLU(inplace=True)
-        """
+
         self.avgpool = nn.AdaptiveAvgPool2d((1, 1))
         self.fc = nn.Linear(512 * block.expansion, num_classes)
 
@@ -203,8 +199,6 @@ class ResNet(nn.Module):
         x = self.layer1(x)
         x = self.layer2(x)
         x_fea = self.layer3(x)
-        # x_fea = self.feat_conv_3x3(x)
-        # x_fea = self.feat_conv_3x3_relu(x_fea)
 
         x = self.layer4(x_fea)
         x = self.avgpool(x)
@@ -212,20 +206,6 @@ class ResNet(nn.Module):
         x = self.fc(x)
 
         return x_fea, x
-    """
-    def load_state_dict(self, target_weights):
-        own_state = self.state_dict()
-
-        for name, param in target_weights.items():
-            if name in own_state:
-                if isinstance(param, nn.Parameter):
-                    param = param.data
-                    own_state[name].copy_(param)
-            else:
-                print('{} meets error in locating parameters'.format(name))
-        missing = set(own_state.keys()) - set(target_weights.keys())
-        print('{} keys are not holded in target checkpoints'.format(len(missing)))
-    """
 
 
 def _resnet(arch, inplanes, planes, pretrained, progress, **kwargs):

@@ -71,6 +71,8 @@ class Unit3D(nn.Module):
                                 padding=0,
                                 # we always want padding to be 0 here. We will dynamically pad based on input size in forward function
                                 bias=self._use_bias)
+        torch.nn.init.normal(self.conv3d.weight, mean=0.0, std=0.01)
+        torch.nn.init.constant_(self.conv3d.bias, 0.0)
 
         if self._use_batch_norm:
             self.bn = nn.BatchNorm3d(self._output_channels, eps=0.001, momentum=0.01)
@@ -120,19 +122,19 @@ class InceptionModule(nn.Module):
         super(InceptionModule, self).__init__()
 
         self.b0 = Unit3D(in_channels=in_channels, output_channels=out_channels[0], kernel_shape=[1, 1, 1], padding=0,
-                         name=name + '/Branch_0/Conv3d_0a_1x1')
+                         name=name + '/Branch_0/Conv3d_0a_1x1', use_bias=True, use_batch_norm=False)
         self.b1a = Unit3D(in_channels=in_channels, output_channels=out_channels[1], kernel_shape=[1, 1, 1], padding=0,
-                          name=name + '/Branch_1/Conv3d_0a_1x1')
+                          name=name + '/Branch_1/Conv3d_0a_1x1', use_bias=True, use_batch_norm=False)
         self.b1b = Unit3D(in_channels=out_channels[1], output_channels=out_channels[2], kernel_shape=[3, 3, 3],
-                          name=name + '/Branch_1/Conv3d_0b_3x3')
+                          name=name + '/Branch_1/Conv3d_0b_3x3', use_bias=True, use_batch_norm=False)
         self.b2a = Unit3D(in_channels=in_channels, output_channels=out_channels[3], kernel_shape=[1, 1, 1], padding=0,
-                          name=name + '/Branch_2/Conv3d_0a_1x1')
+                          name=name + '/Branch_2/Conv3d_0a_1x1', use_bias=True, use_batch_norm=False)
         self.b2b = Unit3D(in_channels=out_channels[3], output_channels=out_channels[4], kernel_shape=[3, 3, 3],
-                          name=name + '/Branch_2/Conv3d_0b_3x3')
+                          name=name + '/Branch_2/Conv3d_0b_3x3', use_bias=True, use_batch_norm=False)
         self.b3a = MaxPool3dSamePadding(kernel_size=[3, 3, 3],
                                         stride=(1, 1, 1), padding=0)
         self.b3b = Unit3D(in_channels=in_channels, output_channels=out_channels[5], kernel_shape=[1, 1, 1], padding=0,
-                          name=name + '/Branch_3/Conv3d_0b_1x1')
+                          name=name + '/Branch_3/Conv3d_0b_1x1', use_bias=True, use_batch_norm=False)
         self.name = name
 
     def forward(self, x):
@@ -140,4 +142,6 @@ class InceptionModule(nn.Module):
         b1 = self.b1b(self.b1a(x))
         b2 = self.b2b(self.b2a(x))
         b3 = self.b3b(self.b3a(x))
+        # b = self.b3b.conv3d._parameters['weight'].data.cpu().numpy()
+        # print(b[3, 3:1023:117, 0, 0, 0])
         return torch.cat([b0, b1, b2, b3], dim=1)

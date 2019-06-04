@@ -53,7 +53,7 @@ def convert_ucf101_csv_to_activitynet_json(label_csv_path, train_csv_path,
 
 
 if __name__ == '__main__':
-    csv_dir_path = '/data/Kinetics400/trainvalList_test/'
+    csv_dir_path = '/data/Kinetics400/trainvalList_debugvid/'
 
     label_csv_path = os.path.join(csv_dir_path, 'classInd.txt')
     train_csv_path = os.path.join(csv_dir_path, 'trainlist.txt')

@@ -22,26 +22,25 @@ def train_epoch(epoch, data_loader, model, criterion, optimizer, opt,
 
     epoch_end_time = time.time()
     end_time = time.time()
-    for i, (inputs, targets) in enumerate(data_loader):
+    for i, (inputs, targets, target_imgs) in enumerate(data_loader):
         data_time.update(time.time() - end_time)
 
         if not opt.no_cuda:
-
             targets_vid = targets.cuda(non_blocking=True)
-            targets_img = torch.cat((targets, targets, targets, targets, targets, targets, targets, targets), dim=0)
-            targets_img = targets_img.cuda(non_blocking=True)
+            targets_img = target_imgs.view(-1).cuda(non_blocking=False)
             
         inputs = Variable(inputs)
         outputs = model(inputs)
-        """
+
         targets_vid = Variable(targets_vid)
         targets_img = Variable(targets_img)
+        img_pred = torch.reshape(outputs[0], (-1, 400))
         loss_vid = criterion(outputs[1], targets_vid)
-        loss_img = criterion(outputs[0], targets_img)
-        loss = loss_vid + loss_img
+        loss_img = criterion(img_pred, targets_img)
+        loss = loss_vid
         acc_vid = calculate_accuracy(outputs[1], targets_vid)
         accuracies.update(acc_vid, inputs.size(0))
-        acc_img = calculate_accuracy(outputs[0], targets_img)
+        acc_img = calculate_accuracy(img_pred, targets_img)
         accuracies_img.update(acc_img, inputs.size(0))
         losses.update(loss.data.cpu(), inputs.size(0))
         """
@@ -51,9 +50,10 @@ def train_epoch(epoch, data_loader, model, criterion, optimizer, opt,
         loss = loss_img
         acc_vid = 0
         accuracies.update(acc_vid, inputs.size(0))
-        acc_img = calculate_accuracy(outputs, targets_img)
+        acc_img = calculate_accuracy(outputs, targets_vid)
         accuracies_img.update(acc_img, inputs.size(0))
         losses.update(loss.data.cpu(), inputs.size(0))
+        """
 
         optimizer.zero_grad()
         loss.backward()
