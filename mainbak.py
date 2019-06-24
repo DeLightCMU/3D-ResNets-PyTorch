@@ -117,7 +117,7 @@ if __name__ == '__main__':
             ToTensor(opt.norm_value),
             norm_method
         ])
-        temporal_transform = TemporalBeginCrop(opt.sample_duration)
+        temporal_transform = TemporalRandomCrop(opt.sample_duration)
         target_transform = ClassLabel()
         training_data = get_training_set(opt, spatial_transform,
                                          temporal_transform, target_transform)
@@ -196,6 +196,7 @@ if __name__ == '__main__':
         ])
         temporal_transform = LoopPadding(opt.sample_duration)
         target_transform = VideoID()
+
         test_data = get_test_set(opt, spatial_transform, temporal_transform,
                                  target_transform)
         test_loader = torch.utils.data.DataLoader(
@@ -205,4 +206,3 @@ if __name__ == '__main__':
             num_workers=opt.n_threads,
             pin_memory=True)
         test.test(test_loader, model, opt, test_data.class_names)
-        import ipdb;ipdb.set_trace()

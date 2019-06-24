@@ -28,6 +28,7 @@ class FGS3D(nn.Module):
         self.resnet_feature = resnet101(pretrained=False)
         num_ftrs = self.resnet_feature.fc.in_features
         self.resnet_feature.fc = nn.Linear(num_ftrs, num_classes)
+        """
         ResNet_state_dict = torch.load('/data/Kinetics400/result/ResNetImg_lr0.00025/F90epochs/save_145.pth')
         ResNet_state_dict = ResNet_state_dict['state_dict']
         new_state_dict = OrderedDict()
@@ -36,6 +37,7 @@ class FGS3D(nn.Module):
             new_state_dict[name] = v
         self.resnet_feature.load_state_dict(new_state_dict)
         set_parameter_requires_grad(self.resnet_feature)
+        """
 
         self.feat_conv_3x3 = nn.Conv2d(in_channels=1024, out_channels=1024, kernel_size=3, padding=6, dilation=6)
         torch.nn.init.normal_(self.feat_conv_3x3.weight, mean=0., std=0.01)
@@ -46,10 +48,15 @@ class FGS3D(nn.Module):
         ##############################################
         # Load flownet
         ##############################################
+        
         self.flownetresize = nn.AvgPool2d(kernel_size=4, stride=4)
+        """
         FlowNet_state_dict = torch.load('/home/weik/pretrainedmodels/FlowNetS/flownets_from_caffe.pth.tar.pth')
         self.flownets = flownets(FlowNet_state_dict)
         set_parameter_requires_grad(self.flownets)
+        """
+        self.flownets = flownets()
+
 
         # self.inception_3D_1 = InceptionModule(1024, [112, 144, 288, 32, 64, 64], 'mixed_4f', )
         self.inception_3D_1 = InceptionModule(1024, [256,160,320,32,128,128], 'mixed_4f')
@@ -61,6 +68,16 @@ class FGS3D(nn.Module):
         self.logits = nn.Linear((384+384+128+128)*32, self.num_classes)
         torch.nn.init.normal_(self.logits.weight, mean=0.0, std=0.01)
         torch.nn.init.constant_(self.logits.bias, 0.0)
+        
+        state_dict = torch.load('/data/Kinetics400/result/finetunelr0.1/A10epochs/save_20.pth')
+        state_dict = state_dict['state_dict']
+        new_state_dict = OrderedDict()
+        for k, v in state_dict.items():
+            name = k[7:]  # remove `module.`
+            new_state_dict[name] = v
+        self.load_state_dict(new_state_dict)
+        set_parameter_requires_grad(self.resnet_feature)
+        set_parameter_requires_grad(self.flownets)
 
 
     def forward(self, x):
