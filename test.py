@@ -17,8 +17,8 @@ def calculate_video_results(output_buffer, video_id, test_results, class_names):
     video_results = []
     for i in range(sorted_scores.size(0)):
         video_results.append({
-            'label': class_names[locs[i]],
-            'score': sorted_scores[i]
+            'label': class_names[int(locs[i])],
+            'score': float(sorted_scores[i])
         })
 
     test_results['results'][video_id] = video_results
@@ -36,10 +36,11 @@ def test(data_loader, model, opt, class_names):
     output_buffer = []
     previous_video_id = ''
     test_results = {'results': {}}
-    for i, (inputs, targets,target_imgs) in enumerate(data_loader):
+    for i, (inputs, targets, target_imgs) in enumerate(data_loader):
         data_time.update(time.time() - end_time)
         inputs = Variable(inputs, volatile=True)
         outputs = model(inputs)
+        outputs = outputs[1]
         if not opt.no_softmax_in_test:
             outputs = F.softmax(outputs)
 
@@ -50,12 +51,6 @@ def test(data_loader, model, opt, class_names):
                 output_buffer = []
             output_buffer.append(outputs[j].data.cpu())
             previous_video_id = targets[j]
-
-        if (i % 100) == 0:
-            with open(
-                    os.path.join(opt.result_path, '{}.json'.format(
-                        opt.test_subset)), 'w') as f:
-                json.dump(test_results, f)
 
         batch_time.update(time.time() - end_time)
         end_time = time.time()

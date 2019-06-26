@@ -69,7 +69,7 @@ class FGS3D(nn.Module):
         torch.nn.init.normal_(self.logits.weight, mean=0.0, std=0.01)
         torch.nn.init.constant_(self.logits.bias, 0.0)
         
-        state_dict = torch.load('/data/Kinetics400/result/finetunelr0.1/A10epochs/save_20.pth')
+        state_dict = torch.load('/data/Kinetics400/result/finetunelr0.1/A20epochs/save_30.pth')
         state_dict = state_dict['state_dict']
         new_state_dict = OrderedDict()
         for k, v in state_dict.items():

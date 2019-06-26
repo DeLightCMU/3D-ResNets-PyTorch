@@ -111,7 +111,6 @@ def get_test_set(opt, spatial_transform, temporal_transform, target_transform):
             temporal_transform,
             target_transform,
             sample_duration=opt.sample_duration)
-        import ipdb; ipdb.set_trace()
     elif opt.dataset == 'activitynet':
         test_data = ActivityNet(
             opt.video_path,

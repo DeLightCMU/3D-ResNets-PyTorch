@@ -136,7 +136,7 @@ def make_dataset(root_path, annotation_path, subset, n_samples_for_each_video,
                                math.ceil((n_frames - 1 - sample_duration) /
                                          (n_samples_for_each_video - 1)))
                 else:
-                    step = sample_duration
+                    step = int(sample_duration / 2)
                 for j in range(1, n_frames, step):
                     sample_j = copy.deepcopy(sample)
                     sample_j['frame_indices'] = list(
@@ -210,6 +210,9 @@ class Kinetics(data.Dataset):
             target = self.target_transform(target)
             # 8 key frames
             target_img = np.asanyarray([target] * 8)
+
+        if type(target) is str:
+            target_img = list(target_img)
         return clip, target, target_img
 
     def __len__(self):
