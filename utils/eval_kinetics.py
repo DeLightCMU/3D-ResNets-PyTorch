@@ -1,16 +1,18 @@
 import json
-import urllib2
+import urllib.request
 
 import numpy as np
 import pandas as pd
 
 API = 'http://ec2-52-11-11-89.us-west-2.compute.amazonaws.com/challenge17/api.py'
 
+
 def get_blocked_videos(api=API):
     api_url = '{}?action=get_blocked'.format(api)
-    req = urllib2.Request(api_url)
-    response = urllib2.urlopen(req)
+    req = urllib.request.Request(api_url)
+    response = urllib.request.urlopen(req)
     return json.loads(response.read())
+
 
 class KINETICSclassification(object):
     GROUND_TRUTH_FIELDS = ['database', 'labels']
@@ -75,7 +77,7 @@ class KINETICSclassification(object):
         # Initialize data frame
         activity_index, cidx = {}, 0
         video_lst, label_lst = [], []
-        for videoid, v in data['database'].iteritems():
+        for videoid, v in data['database'].items():
             if self.subset != v['subset']:
                 continue
             if videoid in self.blocked_videos:
@@ -113,7 +115,7 @@ class KINETICSclassification(object):
 
         # Initialize data frame
         video_lst, label_lst, score_lst = [], [], []
-        for videoid, v in data['results'].iteritems():
+        for videoid, v in data['results'].items():
             if videoid in self.blocked_videos:
                 continue
             for result in v:
@@ -133,17 +135,17 @@ class KINETICSclassification(object):
         """
         hit_at_k = compute_video_hit_at_k(self.ground_truth,
                                           self.prediction, top_k=self.top_k)
-        # avg_hit_at_k = compute_video_hit_at_k(
-            # self.ground_truth, self.prediction, top_k=self.top_k, avg=True)
+        avg_hit_at_k = compute_video_hit_at_k(self.ground_truth,
+                                              self.prediction, top_k=self.top_k, avg=True)
         if self.verbose:
             print('[RESULTS] Performance on ActivityNet untrimmed video '
                    'classification task.')
             # print '\tMean Average Precision: {}'.format(ap.mean())
             print('\tError@{}: {}'.format(self.top_k, 1.0 - hit_at_k))
-            #print '\tAvg Hit@{}: {}'.format(self.top_k, avg_hit_at_k)
+            print('\tAvg Hit@{}: {}'.format(self.top_k, avg_hit_at_k))
         # self.ap = ap
         self.hit_at_k = hit_at_k
-        # self.avg_hit_at_k = avg_hit_at_k
+        self.avg_hit_at_k = avg_hit_at_k
 
 ################################################################################
 # Metrics
@@ -171,6 +173,8 @@ def compute_video_hit_at_k(ground_truth, prediction, top_k=3, avg=False):
     video_ids = np.unique(ground_truth['video-id'].values)
     avg_hits_per_vid = np.zeros(video_ids.size)
     for i, vid in enumerate(video_ids):
+        if (i%1000 == 0):
+            print('{}/{}'.format(i, video_ids.size))
         pred_idx = prediction['video-id'] == vid
         if not pred_idx.any():
             continue
@@ -187,3 +191,19 @@ def compute_video_hit_at_k(ground_truth, prediction, top_k=3, avg=False):
         if not avg:
             avg_hits_per_vid[i] = np.ceil(avg_hits_per_vid[i])
     return float(avg_hits_per_vid.mean())
+
+
+if __name__ == "__main__":
+    anno_data_file_path = '/data/Kinetics400/trainvalList_400/kinetics.json'
+    pred_file_path = '/data/Kinetics400/result/vidtest/val.json'
+    kineticseval = KINETICSclassification(ground_truth_filename=anno_data_file_path,
+                           prediction_filename=pred_file_path,
+                           verbose=True, check_status=False)
+
+    kineticseval.evaluate()
+
+    # with open(pred_file_path, 'r') as pred_file:
+    #     prediction = json.load(pred_file)
+    # prediction = prediction['results']
+    # top_k = 3
+    # compute_video_hit_at_k(ground_truth, prediction, top_k, avg=False)
