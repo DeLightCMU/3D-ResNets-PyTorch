@@ -76,6 +76,13 @@ class KINETICSclassification(object):
 
         # Initialize data frame
         activity_index, cidx = {}, 0
+        for idx, v in enumerate(data['labels']):
+            this_label = v
+            if this_label not in activity_index:
+                activity_index[this_label] = cidx
+                cidx += 1
+
+
         video_lst, label_lst = [], []
         for videoid, v in data['database'].items():
             if self.subset != v['subset']:
@@ -83,9 +90,6 @@ class KINETICSclassification(object):
             if videoid in self.blocked_videos:
                 continue
             this_label = v['annotations']['label']
-            if this_label not in activity_index:
-                activity_index[this_label] = cidx
-                cidx += 1
             video_lst.append(videoid[:-14])
             label_lst.append(activity_index[this_label])
         ground_truth = pd.DataFrame({'video-id': video_lst,
@@ -135,17 +139,17 @@ class KINETICSclassification(object):
         """
         hit_at_k = compute_video_hit_at_k(self.ground_truth,
                                           self.prediction, top_k=self.top_k)
-        avg_hit_at_k = compute_video_hit_at_k(self.ground_truth,
-                                              self.prediction, top_k=self.top_k, avg=True)
+        #avg_hit_at_k = compute_video_hit_at_k(self.ground_truth,
+        #                                      self.prediction, top_k=self.top_k, avg=True)
         if self.verbose:
             print('[RESULTS] Performance on ActivityNet untrimmed video '
                    'classification task.')
             # print '\tMean Average Precision: {}'.format(ap.mean())
             print('\tError@{}: {}'.format(self.top_k, 1.0 - hit_at_k))
-            print('\tAvg Hit@{}: {}'.format(self.top_k, avg_hit_at_k))
+            #print('\tAvg Hit@{}: {}'.format(self.top_k, avg_hit_at_k))
         # self.ap = ap
         self.hit_at_k = hit_at_k
-        self.avg_hit_at_k = avg_hit_at_k
+        #self.avg_hit_at_k = avg_hit_at_k
 
 ################################################################################
 # Metrics
@@ -195,7 +199,7 @@ def compute_video_hit_at_k(ground_truth, prediction, top_k=3, avg=False):
 
 if __name__ == "__main__":
     anno_data_file_path = '/data/Kinetics400/trainvalList_400/kinetics.json'
-    pred_file_path = '/data/Kinetics400/result/vidtest/val.json'
+    pred_file_path = '/data/Kinetics400/result/imgvidtest/val.json'
     kineticseval = KINETICSclassification(ground_truth_filename=anno_data_file_path,
                            prediction_filename=pred_file_path,
                            verbose=True, check_status=False)
