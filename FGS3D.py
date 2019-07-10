@@ -28,7 +28,7 @@ class FGS3D(nn.Module):
         self.resnet_feature = resnet101(pretrained=False)
         num_ftrs = self.resnet_feature.fc.in_features
         self.resnet_feature.fc = nn.Linear(num_ftrs, num_classes)
-        """
+
         ResNet_state_dict = torch.load('/data/Kinetics400/result/ResNetImg_lr0.00025/F90epochs/save_145.pth')
         ResNet_state_dict = ResNet_state_dict['state_dict']
         new_state_dict = OrderedDict()
@@ -37,7 +37,7 @@ class FGS3D(nn.Module):
             new_state_dict[name] = v
         self.resnet_feature.load_state_dict(new_state_dict)
         set_parameter_requires_grad(self.resnet_feature)
-        """
+
 
         self.feat_conv_3x3 = nn.Conv2d(in_channels=1024, out_channels=1024, kernel_size=3, padding=6, dilation=6)
         torch.nn.init.normal_(self.feat_conv_3x3.weight, mean=0., std=0.01)
@@ -50,11 +50,11 @@ class FGS3D(nn.Module):
         ##############################################
         
         self.flownetresize = nn.AvgPool2d(kernel_size=4, stride=4)
-        """
+
         FlowNet_state_dict = torch.load('/home/weik/pretrainedmodels/FlowNetS/flownets_from_caffe.pth.tar.pth')
         self.flownets = flownets(FlowNet_state_dict)
         set_parameter_requires_grad(self.flownets)
-        """
+
         self.flownets = flownets()
 
 
@@ -68,15 +68,15 @@ class FGS3D(nn.Module):
         self.logits = nn.Linear((384+384+128+128)*32, self.num_classes)
         torch.nn.init.normal_(self.logits.weight, mean=0.0, std=0.01)
         torch.nn.init.constant_(self.logits.bias, 0.0)
-        
-        state_dict = torch.load('/data/Kinetics400/result/finetunelr0.1/A20epochs/save_30.pth')
+        """
+        state_dict = torch.load('/data/Kinetics400/result/finetunelr0.1/A30epochs/save_33.pth')
         state_dict = state_dict['state_dict']
         new_state_dict = OrderedDict()
         for k, v in state_dict.items():
             name = k[7:]  # remove `module.`
             new_state_dict[name] = v
         self.load_state_dict(new_state_dict)
-        set_parameter_requires_grad(self.resnet_feature)
+        """
         set_parameter_requires_grad(self.flownets)
 
 
@@ -91,12 +91,6 @@ class FGS3D(nn.Module):
         # data preparing
         # slice key frames
         x_trunk = torch.split(x, 1, dim=2)  # x_trunk: 64 * [1 3 1 224 224]
-
-
-        # data_bef = torch.cat(x_trunk[0:-2], dim=2) # data_bef: [1 3 62 224 224]
-        # data_curr = torch.cat(x_trunk[1:-1], dim=2)  # data_curr: [1 3 62 224 224]
-        # data_aft = torch.cat(x_trunk[2:], dim=2)  # data_aft: [1 3 62 224 224]
-
 
         # key frames
         data_key1 = x_trunk[0]                        # data_key1: [1 3 1 224 224]
@@ -129,7 +123,8 @@ class FGS3D(nn.Module):
         x_keyframes = x_keyframes.permute(1, 0, 2, 3)
 
         # extract features for key frames
-        self.resnet_feature.eval()
+        # self.resnet_feature.eval()
+        self.freeze_bn()
         feature_keyframe, pred_keyframes = self.resnet_feature(x_keyframes)   # [8 1024 14 14] [8 400]
 
         # feature_keyframe, pred_keyframes = self.resnet_feature(x)
@@ -235,4 +230,9 @@ class FGS3D(nn.Module):
         feat_keys = torch.cat((feat_cam, feat_cam, feat_cam, feat_cam, feat_cam, feat_cam, feat_cam), dim=0)
 
         return warp(feat_keys, flow)  # [7 512 7 7]
+
+    def freeze_bn(self):
+        for layer in self.modules():
+            if isinstance(layer, nn.BatchNorm2d):
+                layer.eval()
 
